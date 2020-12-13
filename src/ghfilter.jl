@@ -170,15 +170,15 @@ function batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions:
     return x_results, dx_results, ddx_results
 end
 
-methods(update)
-methods(batch_filter)
-
-x0 = [1.0, 10.0, 100.0]
-dx0 = [10.0, 12.0, 0.2]
-ddx0 = [0.1, 0.2, 0.0]
-
-filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1)
-
-update(filter, [12.0, 11.3, 105.9])
-z = [12.0 11.3 105.9; 14.0 15.3 111.9]
-batch_filter(filter, z)
+# methods(update)
+# methods(batch_filter)
+#
+# x0 = [1.0, 10.0, 100.0]
+# dx0 = [10.0, 12.0, 0.2]
+# ddx0 = [0.1, 0.2, 0.0]
+#
+# filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1)
+#
+# update(filter, [12.0, 11.3, 105.9])
+# z = [12.0 11.3 105.9; 14.0 15.3 111.9]
+# batch_filter(filter, z)
