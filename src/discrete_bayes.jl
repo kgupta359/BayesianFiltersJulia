@@ -1,4 +1,8 @@
+module discrete_bayes
+
 using DSP
+
+export normalize, update, predict
 
 function normalize(pdf::Array{Float64})
     pdf /= sum(pdf)
@@ -29,7 +33,7 @@ end
 # normalize(belief)
 # likelihood = [1. 0. 1. 0.3 0.3 0.1 0.001 0.9 0.1 0.9]
 # update(likelihood, belief)
-# 
+#
 # belief = [.05 .05 .05 .05 .55 .05 .05 .05 .05 .05]
 # kernel = [.1 .8 .1]
 # prior = predict(belief, 1, kernel)
@@ -41,3 +45,5 @@ end
 # belief = [.05, .05, .05, .05, .55, .05, .05, .05, .05, .05]
 # kernel = [.05, .05, .6, .2, .1]
 # prior = predict(belief, 3, kernel)
+
+end

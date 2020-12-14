@@ -3,6 +3,10 @@ uuid = "2ff4a730-456d-4c3e-bf56-a4885836666e"
 authors = ["kgupta359 <komal.gupta@student.unsw.edu.au> and contributors"]
 version = "0.1.0"
 
+[deps]
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+
 [compat]
 julia = "1"
 

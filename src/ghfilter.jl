@@ -1,3 +1,7 @@
+module ghfilter
+
+export GHFilter, GHKFilter, update, batch_filter
+
 mutable struct GHFilter
     x::Vector{Float64}
     dx::Vector{Float64}
@@ -182,3 +186,5 @@ end
 # update(filter, [12.0, 11.3, 105.9])
 # z = [12.0 11.3 105.9; 14.0 15.3 111.9]
 # batch_filter(filter, z)
+
+end
