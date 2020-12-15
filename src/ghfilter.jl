@@ -2,6 +2,23 @@ module ghfilter
 
 export GHFilter, GHKFilter, update, batch_filter
 
+"""
+    GHFilter(
+                x::Vector{Float64},
+                dx::Vector{Float64},
+                dt::Float64,
+                g::Float64,
+                h::Float64
+            )
+
+Define and initialize a g-h filter
+
+# Examples
+```julia-repl
+julia> ghf = GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+```
+"""
 mutable struct GHFilter
     x::Vector{Float64}
     dx::Vector{Float64}
@@ -12,6 +29,28 @@ end
 
 FloatOrNothing = Union{Float64,Nothing}
 
+"""
+    update(
+            filter::GHFilter,
+            z::Vector{Float64};
+            g::Union{Float64,Nothing}=nothing,
+            h::Union{Float64,Nothing}=nothing
+            )
+
+performs the g-h filter predict and update step on the
+measurement z and returns the state of x and dx as a tuple.
+
+Optional: Overrides filter.g and filter.h for this update.
+
+# Examples
+```julia-repl
+julia> update(ghf, [1.2])
+([0.96], [0.24])
+
+julia> update(ghf, [2.1], g=0.85, h=0.15)
+([1.965], [0.375])
+```
+"""
 function update(filter::GHFilter, z::Vector{Float64}; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing)
     if g == nothing
         g = filter.g
@@ -30,6 +69,20 @@ function update(filter::GHFilter, z::Vector{Float64}; g::FloatOrNothing=nothing,
     return filter.x, filter.dx
 end
 
+"""
+    batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::Bool=false)
+
+Given a sequenced list of data, performs g-h filter with a fixed g and h.
+
+# Examples
+```julia-repl
+julia> ghf = GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+
+julia> batch_filter(ghf, [1.0, 2.0, 3.0])
+([0.0; 0.8; 1.8; 2.84], [0.0; 0.2; 0.4; 0.56])
+```
+"""
 function batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::Bool=false)
     x = filter.x
     dx = filter.dx
@@ -70,22 +123,31 @@ function batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::
     return x_results, dx_results
 end
 
-# ghf = GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
-#
-# update(ghf, [1.2])
-#
-# update(ghf, [2.1], 0.85, 0.15)
-#
-# batch_filter(ghf, [3.0, 4.0, 5.0])
-#
-x0 = [1.0, 10.0, 100.0]
-dx0 = [10.0, 12.0, 0.2]
-f_air = GHFilter(x0, dx0, 1.0, 0.8, 0.2)
-z = [2.0, 11.0, 102.0]
-update(f_air, z)
-data = [2.0 11.0 102.0; 3.0 15.3 109.6]
-batch_filter(f_air, data)
+"""
+    GHKFilter(
+                x::Vector{Float64},
+                dx::Vector{Float64},
+                ddx::Vector{Float64},
+                dt::Float64,
+                g::Float64,
+                h::Float64,
+                k::Float64
+            )
 
+Define and initialize a g-h-k filter
+
+# Examples
+```julia-repl
+julia> x0 = [1.0, 10.0, 100.0];
+
+julia> dx0 = [10.0, 12.0, 0.2];
+
+julia> ddx0 = [0.1, 0.2, 0.0];
+
+julia> filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1)
+GHKFilter([1.0, 10.0, 100.0], [10.0, 12.0, 0.2], [0.1, 0.2, 0.0], 1.0, 0.8, 0.2, 0.1)
+```
+"""
 mutable struct GHKFilter
     x::Vector{Float64}
     dx::Vector{Float64}
@@ -96,6 +158,28 @@ mutable struct GHKFilter
     k::Float64
 end
 
+"""
+    update(
+            filter::GHKFilter,
+            z::Vector{Float64};
+            g::Union{Float64,Nothing}=nothing,
+            h::Union{Float64,Nothing}=nothing,
+            k::Union{Float64,Nothing}=nothing,
+            )
+
+performs the g-h-k filter predict and update step on the
+measurement z and returns the state of x and dx as a tuple.
+Optional: Overrides filter.g, filter.h and filter.k for this update.
+
+# Examples
+```julia-repl
+julia> filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1)
+GHKFilter([1.0, 10.0, 100.0], [10.0, 12.0, 0.2], [0.1, 0.2, 0.0], 1.0, 0.8, 0.2, 0.1)
+
+julia> update(filter, [12.0, 11.3, 105.9])
+([11.81, 13.46, 104.76], [10.29, 10.04, 1.34])
+```
+"""
 function update(filter::GHKFilter, z::Vector{Float64}; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing, k::FloatOrNothing=nothing)
     if g == nothing
         g = filter.g
@@ -124,6 +208,23 @@ function update(filter::GHKFilter, z::Vector{Float64}; g::FloatOrNothing=nothing
     return filter.x, filter.dx
 end
 
+"""
+    batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions::Bool=false)
+
+Given a sequenced list of data, performs g-h-k filter with fixed g, h and k.
+
+# Examples
+```julia-repl
+julia> filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1);
+
+julia> z = [12.0 11.3 105.9; 14.0 15.3 111.9];
+
+julia> batch_filter(filter, z)
+([1.0 10.0 100.0; 11.81 13.46 104.76; 15.649 16.744 110.854],
+ [10.0 12.0 0.2; 10.29 10.04 1.34; 8.931 6.636 3.526],
+ [0.1 0.2 0.0; 0.29 -1.96 1.14; -1.359 -3.404 2.186])
+```
+"""
 function batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions::Bool=false)
     x = filter.x
     dx = filter.dx
@@ -173,18 +274,5 @@ function batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions:
 
     return x_results, dx_results, ddx_results
 end
-
-# methods(update)
-# methods(batch_filter)
-#
-# x0 = [1.0, 10.0, 100.0]
-# dx0 = [10.0, 12.0, 0.2]
-# ddx0 = [0.1, 0.2, 0.0]
-#
-# filter = GHKFilter(x0, dx0, ddx0, 1.0, 0.8, 0.2, 0.1)
-#
-# update(filter, [12.0, 11.3, 105.9])
-# z = [12.0 11.3 105.9; 14.0 15.3 111.9]
-# batch_filter(filter, z)
 
 end
