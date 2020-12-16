@@ -84,7 +84,7 @@ function mul(d1::UnivariateDistribution, d2::UnivariateDistribution)
     var3 = 1.0/(1.0/var1 + 1.0/var2)
     mean3 = (var1*mean2 + var2*mean1)/(var1 + var2)
 
-    return Normal(mean3, var3)
+    return Normal(mean3, sqrt(var3))
 end
 
 function mul(d1::MultivariateDistribution, d2::MultivariateDistribution)
