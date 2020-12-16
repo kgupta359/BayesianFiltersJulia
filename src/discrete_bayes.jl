@@ -1,11 +1,9 @@
 module discrete_bayes
 
-using DSP
-
 export normalize, update, predict
 
 """
-    normalize(pdf::Array{Float64})
+    normalize(pdf)
 
 Returns normalized discrete probability distribution function
 
@@ -18,13 +16,13 @@ julia> normalize(belief)
  0.1875  0.0625  0.0625  0.0625  0.0  0.0625  0.25  0.25  0.0625  0.0
 ```
 """
-function normalize(pdf::Array{Float64})
+function normalize(pdf::AbstractArray)
     pdf /= sum(pdf)
     return pdf
 end
 
 """
-    update(likelihood::Array{Float64}, prior::Array{Float64})
+    update(likelihood, prior)
 
 Computes the posterior of a discrete random variable
 given a discrete likelihood and prior
@@ -40,13 +38,13 @@ julia> update(likelihood, belief)
  0.370188  0.0  0.123396  0.0370188  0.0  0.0123396  0.000493583  0.444225  0.0123396  0.0
 ```
 """
-function update(likelihood::Array{Float64}, prior::Array{Float64})
+function update(likelihood::AbstractArray, prior::AbstractArray)
     posterior = prior .* likelihood
     return normalize(posterior)
 end
 
 """
-    predict(pdf::Array{Float64}, offset::Int64, kernel::Array{Float64})
+    predict(pdf, offset, kernel)
 
 Performs the discrete Bayes filter prediction step, generating the prior.
 
@@ -68,7 +66,7 @@ julia> prior = predict(belief, 1, kernel)
  0.05  0.05  0.05  0.05  0.1  0.45  0.1  0.05  0.05  0.05
 ```
 """
-function predict(pdf::Array{Float64}, offset::Int64, kernel::Array{Float64})
+function predict(pdf::AbstractArray, offset::Int, kernel::AbstractArray)
     n = length(pdf)
     m = length(kernel)
     width = Int((m-1)/2)

@@ -2,39 +2,35 @@ module ghfilter
 
 export GHFilter, GHKFilter, update, batch_filter
 
+FloatOrNothing = Union{Real, Nothing}
+FloatOrArray = Union{Real, AbstractArray}
+
 """
-    GHFilter(
-                x::Vector{Float64},
-                dx::Vector{Float64},
-                dt::Float64,
-                g::Float64,
-                h::Float64
-            )
+    GHFilter(x, dx, dt, g, h)
 
 Define and initialize a g-h filter
 
 # Examples
 ```julia-repl
-julia> ghf = GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
-GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+julia> ghf = GHFilter(0.0, 0.0, 1.0, 0.8, 0.2)
+GHFilter(0.0, 0.0, 1.0, 0.8, 0.2)
 ```
 """
 mutable struct GHFilter
-    x::Vector{Float64}
-    dx::Vector{Float64}
-    dt::Float64
-    g::Float64
-    h::Float64
+    x::FloatOrArray
+    dx::FloatOrArray
+    dt::Real
+    g::Real
+    h::Real
 end
 
-FloatOrNothing = Union{Float64,Nothing}
 
 """
     update(
             filter::GHFilter,
-            z::Vector{Float64};
-            g::Union{Float64,Nothing}=nothing,
-            h::Union{Float64,Nothing}=nothing
+            z::Union{Real, AbstractArray{Real}},
+            g::Union{Real, Nothing}=nothing,
+            h::Union{Real, Nothing}=nothing
             )
 
 performs the g-h filter predict and update step on the
@@ -44,14 +40,16 @@ Optional: Overrides filter.g and filter.h for this update.
 
 # Examples
 ```julia-repl
-julia> update(ghf, [1.2])
-([0.96], [0.24])
+julia> ghf = GHFilter(0.0, 0.0, 1.0, 0.8, 0.2);
 
-julia> update(ghf, [2.1], g=0.85, h=0.15)
-([1.965], [0.375])
+julia> update(ghf, 1.2)
+(0.96, 0.24)
+
+julia> update(ghf, 2.1, g=0.85, h=0.15)
+(1.965, 0.375)
 ```
 """
-function update(filter::GHFilter, z::Vector{Float64}; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing)
+function update(filter::GHFilter, z::FloatOrArray; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing)
     if g == nothing
         g = filter.g
     end
@@ -70,27 +68,39 @@ function update(filter::GHFilter, z::Vector{Float64}; g::FloatOrNothing=nothing,
 end
 
 """
-    batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::Bool=false)
+    batch_filter(filter::GHFilter, data::AbstractArray, save_predictions::Bool=false)
 
 Given a sequenced list of data, performs g-h filter with a fixed g and h.
 
 # Examples
 ```julia-repl
-julia> ghf = GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
-GHFilter([0.0], [0.0], 1.0, 0.8, 0.2)
+julia> ghf = GHFilter(0.0, 0.0, 1.0, 0.8, 0.2)
+GHFilter(0.0, 0.0, 1.0, 0.8, 0.2)
 
 julia> batch_filter(ghf, [1.0, 2.0, 3.0])
 ([0.0; 0.8; 1.8; 2.84], [0.0; 0.2; 0.4; 0.56])
+
+julia> ghf = GHFilter([1., 0.], [2., 3.], 1., 0.1, 0.02);
+
+julia> batch_filter(ghf, [1.0 0.2; 2.0 3.0; 3.0 1.0])
+([1.0 0.0; 2.8 2.72; 4.484 5.3976; 6.04992 7.559488],
+ [2.0 3.0; 1.96 2.944; 1.9048 2.89072; 1.837024 2.7449536])
 ```
 """
-function batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::Bool=false)
-    x = filter.x
-    dx = filter.dx
+function batch_filter(filter::GHFilter, data::AbstractArray; save_predictions::Bool=false)
+    if length(filter.x) == 1
+        x = [filter.x]
+        dx = [filter.dx]
+    else
+        x = filter.x
+        dx = filter.dx
+    end
     dim = length(x)
     n = size(data)[1]
 
-    x_results = zeros(n+1,dim)
+    x_results = zeros(n+1, dim)
     dx_results = zeros(n+1, dim)
+
     x_results[1,:] = x
     dx_results[1,:] = dx
 
@@ -124,15 +134,7 @@ function batch_filter(filter::GHFilter, data::Array{Float64}; save_predictions::
 end
 
 """
-    GHKFilter(
-                x::Vector{Float64},
-                dx::Vector{Float64},
-                ddx::Vector{Float64},
-                dt::Float64,
-                g::Float64,
-                h::Float64,
-                k::Float64
-            )
+    GHKFilter(x, dx, ddx, dt, g, h, k)
 
 Define and initialize a g-h-k filter
 
@@ -149,22 +151,22 @@ GHKFilter([1.0, 10.0, 100.0], [10.0, 12.0, 0.2], [0.1, 0.2, 0.0], 1.0, 0.8, 0.2,
 ```
 """
 mutable struct GHKFilter
-    x::Vector{Float64}
-    dx::Vector{Float64}
-    ddx::Vector{Float64}
-    dt::Float64
-    g::Float64
-    h::Float64
-    k::Float64
+    x::FloatOrArray
+    dx::FloatOrArray
+    ddx::FloatOrArray
+    dt::Real
+    g::Real
+    h::Real
+    k::Real
 end
 
 """
     update(
             filter::GHKFilter,
-            z::Vector{Float64};
-            g::Union{Float64,Nothing}=nothing,
-            h::Union{Float64,Nothing}=nothing,
-            k::Union{Float64,Nothing}=nothing,
+            z::Union{Real, AbstractArray},
+            g::Union{Real, Nothing}=nothing,
+            h::Union{Real, Nothing}=nothing,
+            k::Union{Real, Nothing}=nothing,
             )
 
 performs the g-h-k filter predict and update step on the
@@ -180,7 +182,7 @@ julia> update(filter, [12.0, 11.3, 105.9])
 ([11.81, 13.46, 104.76], [10.29, 10.04, 1.34])
 ```
 """
-function update(filter::GHKFilter, z::Vector{Float64}; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing, k::FloatOrNothing=nothing)
+function update(filter::GHKFilter, z::FloatOrArray; g::FloatOrNothing=nothing, h::FloatOrNothing=nothing, k::FloatOrNothing=nothing)
     if g == nothing
         g = filter.g
     end
@@ -209,7 +211,7 @@ function update(filter::GHKFilter, z::Vector{Float64}; g::FloatOrNothing=nothing
 end
 
 """
-    batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions::Bool=false)
+    batch_filter(filter::GHKFilter, data::AbstractArray, save_predictions::Bool=false)
 
 Given a sequenced list of data, performs g-h-k filter with fixed g, h and k.
 
@@ -225,10 +227,17 @@ julia> batch_filter(filter, z)
  [0.1 0.2 0.0; 0.29 -1.96 1.14; -1.359 -3.404 2.186])
 ```
 """
-function batch_filter(filter::GHKFilter, data::Array{Float64}; save_predictions::Bool=false)
-    x = filter.x
-    dx = filter.dx
-    ddx = filter.ddx
+function batch_filter(filter::GHKFilter, data::AbstractArray; save_predictions::Bool=false)
+    if length(filter.x) == 1
+        x = [filter.x]
+        dx = [filter.dx]
+        ddx = [filter.ddx]
+    else
+        x = filter.x
+        dx = filter.dx
+        ddx = filter.ddx
+    end
+
     dim = length(x)
     n = size(data)[1]
 
