@@ -1,6 +1,6 @@
 module stats
 # implements some common statistical functions
-export mahalanobis, log_pdf, log_likelihood, likelihood,
+export mahalanobis, log_pdf, log_likelihood, likelihood
 export gaussian, mul, add, covariance_ellipse
 export Normal, MvNormal, pdf, mean, var, cov
 
