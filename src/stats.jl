@@ -1,10 +1,13 @@
 module stats
 # implements some common statistical functions
-export mahalanobis, log_pdf, log_likelihood, likelihood, gaussian, mul, add, covariance_ellipse
+export mahalanobis, log_pdf, log_likelihood, likelihood,
+export gaussian, mul, add, covariance_ellipse
+export Normal, MvNormal, pdf, mean, var, cov
 
 using Statistics
 using Distributions
 using LinearAlgebra
+
 
 FloatOrArray = Union{Real, AbstractArray}
 
@@ -46,7 +49,7 @@ Returns log-likelihood of the measurement z given the Gaussian
 posterior (x, P) using measurement function H and measurement
 covariance error R
 """
-log_likelihood(z::Real, x::Real, P::Real, H::Real, R::Real) = log_pdf(Normal(H*x, H*P*H + R), z)
+log_likelihood(z::Real, x::Real, P::Real, H::Real, R::Real) = log_pdf(Normal(H*x, sqrt(H*P*H + R)), z)
 log_likelihood(z::AbstractArray, x::AbstractArray, P::AbstractArray, H::AbstractArray, R::AbstractArray) = log_pdf(MvNormal(H*x, H*P*H' + R), z)
 
 """
@@ -118,7 +121,7 @@ function add(d1::UnivariateDistribution, d2::UnivariateDistribution)
     mean3 = mean1 + mean2
     var3 = var1 + var2
 
-    return Normal(mean3, var3)
+    return Normal(mean3, sqrt(var3))
 end
 
 function add(d1::MultivariateDistribution, d2::MultivariateDistribution)
