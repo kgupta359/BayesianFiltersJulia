@@ -64,11 +64,26 @@ likelihood(z, x, P, H, R) = exp(log_likelihood(z, x, P, H, R))
 """
     gaussian(x, mean, var)
 
-Returns probability density function (pdf) for x given a Gaussian with the
+Returns un-normalized probability density function (pdf) for x given a Gaussian with the
 specified mean and variance.
+
+For univariate distribution
+
+    •   If `x` is a scalar, it returns a scalar
+
+    •   If `x` is a vector, it returns a vector with pdf at given points
+
+For multivariate distribution
+
+    •   If `x` is a vector, it returns the result as a scalar.
+
+    •   If `x` is a matrix with n columns, it returns a vector `r` of length n, where
+        `r[i]` corresponds to `x[:,i]` (i.e. treating each column as a sample).
+
 """
+gaussian(x::Real, mean::Real, var::Real) = pdf(Normal(mean, sqrt(var)), x)
 gaussian(x::AbstractArray, mean::Real, var::Real) = pdf.(Normal(mean, sqrt(var)), x)
-gaussian(x::AbstractArray, mean::AbstractArray, cov::AbstractArray) = pdf.(MvNormal(mean, cov), x)
+gaussian(x::AbstractArray, mean::AbstractArray, cov::AbstractArray) = pdf(MvNormal(mean, cov), x)
 
 """
     mul(d1:: Distribution, d2:: Distribution)
