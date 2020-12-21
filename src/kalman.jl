@@ -1,4 +1,4 @@
-module Kalman
+module kalman
 # implements the linear kalman filter algorithm
 export KalmanFilter, predict, update, residual_of, measurement_of_state, batch_filter, rts_smoother
 

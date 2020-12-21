@@ -9,8 +9,8 @@ using .discrete_bayes
 include("stats.jl")
 using .stats
 
-include("kalman_filter.jl")
-using .Kalman
+include("kalman.jl")
+using .kalman
 
 include("common.jl")
 using .common
