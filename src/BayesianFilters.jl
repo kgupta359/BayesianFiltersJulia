@@ -8,4 +8,10 @@ using .discrete_bayes
 
 include("stats.jl")
 using .stats
+
+include("kalman_filter.jl")
+using .Kalman
+
+include("common.jl")
+using .common
 end
