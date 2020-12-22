@@ -205,7 +205,8 @@ end
     batch_filter(filter, zs)
 
 Updates `filter` with a sequence of measurements `zs`. Returns means and
-covariances after prediction and update steps respectively
+covariances after prediction and update steps respectively at each time step.
+`zs` must be an array of arrays.
 """
 function batch_filter(filter::KalmanFilter, zs; us=undef, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
     n = size(zs)[1]
@@ -223,7 +224,7 @@ function batch_filter(filter::KalmanFilter, zs; us=undef, Fs=nothing, Qs=nothing
     covariances = fill(zeros(filter.x_dim, filter.x_dim), n)
     covariances_p = fill(zeros(filter.x_dim, filter.x_dim), n)
 
-    for (i, z) in enumerate(eachrow(zs))
+    for (i, z) in enumerate(zs)
         predict(filter, u=us[i], B=Bs[i], F=Fs[i], Q=Qs[i])
         means_p[i] = filter.x
         covariances_p[i] = filter.P
@@ -282,7 +283,7 @@ sensor_std = sqrt(sensor_var)
 rng = MersenneTwister(42)
 
 xs = zeros(num) # track
-zs = zeros(num) # measurements
+zs = fill(zeros(1),num) # measurements
 
 for i in 1:num
     # move
@@ -290,7 +291,7 @@ for i in 1:num
     xi += v*dt
     xs[i] = xi
     # sense
-    zs[i] = xi + randn(rng)*sensor_std
+    zs[i] = [xi + randn(rng)*sensor_std]
 end
 
 _, _, Xs, Covs = batch_filter(kf, zs)
@@ -299,7 +300,7 @@ Ms, Ps, _, _ = rts_smoother(kf, Xs, Covs)
 
 using Plots
 plotlyjs()
-scatter(zs, label="measured")
+scatter(hcat(zs...)[1,:], label="measured")
 plot!(collect(1:50),label="track")
 plot!(hcat(Xs...)[1,:], label="filter")
 plot!(hcat(Ms...)[1,:], label="smoother")
