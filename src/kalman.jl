@@ -20,6 +20,7 @@ Use matrices instead of vectors for inputs.
 - `P::AbstractArray = Matrix{Real}(I, x_dim, x_dim)`: uncertainty covariance
 - `Q::AbstractArray = Matrix{Real}(I, x_dim, x_dim)`: process uncertainty
 - `B::AbstractArray = Matrix{Real}(undef, x_dim, u_dim)`: control transition matrix
+- `u::AbstractArray = zeros(u_dim,1)`: control vector
 - `F::AbstractArray = Matrix{Real}(I, x_dim, x_dim)`: state transition matrix
 - `H::AbstractArray = zeros(z_dim, x_dim)`: measurement function
 - `R::AbstractArray = Matrix{Real}(I, z_dim, z_dim)`: state uncertainty
@@ -64,6 +65,7 @@ Base.@kwdef mutable struct KalmanFilter
     P::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # uncertainty covariance
     Q::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # process uncertainty
     B::AbstractArray = Matrix{Real}(undef, x_dim, x_dim)# control transition matrix
+    u::AbstractArray = zeros(u_dim,1)                   # control vector
     F::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # state transition matrix
     H::AbstractArray = zeros(z_dim, x_dim)              # measurement function
     R::AbstractArray = Matrix{Real}(I, z_dim, z_dim)    # state uncertainty
@@ -95,7 +97,8 @@ Predict next state (prior) using the Kalman filter state propagation equations
 - `F = nothing`: state transition matrix
 - `modify::Bool = true`: whether to modify the filter or return x, P
 """
-function predict(filter::KalmanFilter; u=undef, B=nothing, F=nothing, Q=nothing, modify::Bool=true)
+function predict(filter::KalmanFilter; u=nothing, B=nothing, F=nothing, Q=nothing, modify::Bool=true)
+    if (u == nothing) u = filter.u end
     if (B == nothing) B = filter.B end
     if (F == nothing) F = filter.F end
     if (Q == nothing)
@@ -105,11 +108,8 @@ function predict(filter::KalmanFilter; u=undef, B=nothing, F=nothing, Q=nothing,
     end
 
     # propagate state x = Fx + Bu
-    if isassigned(B) && isassigned(u)
-        x = F*filter.x + B*u
-    else
-        x = F*filter.x
-    end
+    x = F*filter.x + B*u
+
     # propagate covariance P = FPF' + Q
     P = F*filter.P*F' + Q
 
@@ -208,7 +208,7 @@ Updates `filter` with a sequence of measurements `zs`. Returns means and
 covariances after prediction and update steps respectively at each time step.
 `zs` must be an array of arrays.
 """
-function batch_filter(filter::KalmanFilter, zs; us=undef, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
+function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
     n = size(zs)[1]
 
     if (Fs == nothing) Fs = fill(filter.F, n) end
@@ -216,7 +216,7 @@ function batch_filter(filter::KalmanFilter, zs; us=undef, Fs=nothing, Qs=nothing
     if (Hs == nothing) Hs = fill(filter.H, n) end
     if (Rs == nothing) Rs = fill(filter.R, n) end
     if (Bs == nothing) Bs = fill(filter.B, n) end
-    if (us == undef) us = fill(undef, n) end
+    if (us == nothing) us = fill(filter.u, n) end
 
     means = fill(zeros(size(filter.x)), n)
     means_p = fill(zeros(size(filter.x)), n)
