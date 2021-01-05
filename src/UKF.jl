@@ -60,8 +60,8 @@ Base.@kwdef mutable struct UnscentedKF
     Q::AbstractArray = Matrix{Real}(I, x_dim, x_dim)
     R::AbstractArray = Matrix{Real}(I, z_dim, z_dim)
     num_sigmas::Real = points_fn.num_sigmas
-    Wm::AbstractWeights = weights(points_fn.Wm)
-    Wc::AbstractWeights = weights(points_fn.Wc)
+    Wm::AbstractArray = points_fn.Wm
+    Wc::AbstractArray = points_fn.Wc
 
     sigmas_f::AbstractArray = zeros(num_sigmas, x_dim)
     sigmas_h::AbstractArray = zeros(num_sigmas, z_dim)
