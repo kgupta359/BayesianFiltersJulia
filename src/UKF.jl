@@ -1,7 +1,9 @@
 module UKF
 # implements the unscented kalman filter and related functions
 include("common.jl")
+using .common
 include("_sigma_points.jl")
+using ._sigma_points
 
 export unscented_transform, UnscentedKF, predict, update, compute_process_sigmas, cross_variance
 export MerweScaledSigmaPoints, JulierSigmaPoints, sigma_points
