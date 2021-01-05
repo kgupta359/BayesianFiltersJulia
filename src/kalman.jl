@@ -226,7 +226,7 @@ function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothi
         means[i] = filter.x
         covariances[i] = filter.P
     end
-    return means_p, covariances_p, means, covariances
+    return means, covariances
 end
 
 """
