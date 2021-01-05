@@ -197,8 +197,7 @@ end
     batch_filter(filter, zs)
 
 Updates `filter` with a sequence of measurements `zs`. Returns means and
-covariances after prediction and update steps respectively at each time step.
-`zs` must be an array of arrays.
+covariances after update at each time step. zs
 """
 function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
 
@@ -211,22 +210,22 @@ function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothi
     if Rs==nothing Rs=fill(filter.R, n) end
     if Bs==nothing Bs=fill(filter.B, n) end
 
-    means = fill(zeros(size(filter.x)), n)
-    means_p = fill(zeros(size(filter.x)), n)
+    means = zeros(n, filter.x_dim)
+    means_p = zeros(n, filter.x_dim)
 
     covariances = fill(zeros(filter.x_dim, filter.x_dim), n)
     covariances_p = fill(zeros(filter.x_dim, filter.x_dim), n)
 
-    for (i, z) in enumerate(zs)
+    for (i, z) in enumerate(eachrow(zs))
         predict(filter, u=us[i], B=Bs[i], F=Fs[i], Q=Qs[i])
-        means_p[i] = filter.x
+        means_p[i,:] = filter.x
         covariances_p[i] = filter.P
 
         update(filter, z, R=Rs[i], H=Hs[i])
-        means[i] = filter.x
+        means[i,:] = filter.x
         covariances[i] = filter.P
     end
-    return means, covariances
+    return (means, covariances)
 end
 
 """
@@ -234,13 +233,16 @@ end
 
 Runs the Rauch-Tung-Striebel Kalman smoother on a set of means and covariances
 computed by a Kalman filter (preferably using batch_filter()). Returns smoothed means `x`, smoothed state covariances
-`P`, smoother gain `K` at each step and predicted state covariances `Pp`.
+`P` and smoother gain `K` at each step.
 """
 function rts_smoother(filter::KalmanFilter, Xs::AbstractArray, Ps::AbstractArray;
-    Fs=fill(filter.F, n), Qs=fill(filter.Q, n))
+    Fs=nothing, Qs=nothing)
     size(Xs)[1] == size(Ps)[1] || throw(DimensionMismatch("length of Xs and Ps must be the same"))
 
     n = size(Xs)[1]
+
+    if Fs==nothing Fs=fill(filter.F, n) end
+    if Qs==nothing Qs=fill(filter.Q, n) end
 
     # smoother gain
     K = fill(zeros(filter.x_dim, filter.x_dim),n)
@@ -250,16 +252,16 @@ function rts_smoother(filter::KalmanFilter, Xs::AbstractArray, Ps::AbstractArray
         Pp[i] = Fs[i+1]*P[i]*Fs[i+1]' + Qs[i+1]
 
         K[i] = P[i]*(Fs[i+1]')*inv(Pp[i])
-        x[i] += K[i]*(x[i+1] - Fs[i+1]*x[i])
+        x[i,:] += K[i]*(x[i+1,:] - Fs[i+1]*x[i,:])
         P[i] += K[i]*(P[i+1] - Pp[i])*K[i]'
     end
-    return (x, P, K, Pp)
+    return (x, P, K)
 end
 
 """
 # Example
 
-kf = KalmanFilter(x_dim=2, z_dim=1, R= [3.][:,:], Q=[0.02 0; 0 0.02], P=[500. 0.; 0. 49.], x=[0.; 0.][:,:], F=[1. 1.; 0. 1.], H=[1 0])
+kf = KalmanFilter(x_dim=2, z_dim=1, R= [3.][:,:], Q=[0.02 0; 0 0.02], P=[500. 0.; 0. 49.], x=[0. 0.]', F=[1. 1.; 0. 1.], H=[1 0])
 
 # simulate measurements
 using Random
@@ -273,8 +275,8 @@ process_std = sqrt(process_var)
 sensor_std = sqrt(sensor_var)
 rng = MersenneTwister(42)
 
-xs = zeros(num) # track
-zs = fill(zeros(1),num) # measurements
+xs = zeros(num,1) # track
+zs = zeros(num,1) # measurements
 
 for i in 1:num
     # move
@@ -282,18 +284,19 @@ for i in 1:num
     xi += v*dt
     xs[i] = xi
     # sense
-    zs[i] = [xi + randn(rng)*sensor_std]
+    zs[i,:] = [xi + randn(rng)*sensor_std]
 end
 
-_, _, Xs, Covs = batch_filter(kf, zs)
+Xs, Covs = batch_filter(kf, zs)
 
-Ms, Ps, _, _ = rts_smoother(kf, Xs, Covs)
+Ms, Ps, Ks = rts_smoother(kf, Xs, Covs)
 
 using Plots
 plotlyjs()
-scatter(hcat(zs...)[1,:], label="measured")
+scatter(zs[:,1], label="measured")
 plot!(collect(1:50),label="track")
-plot!(hcat(Xs...)[1,:], label="filter")
-plot!(hcat(Ms...)[1,:], label="smoother")
+plot!(Xs[:,1], label="filter")
+plot!(Ms[:,1], label="smoother")
 """
+
 end
