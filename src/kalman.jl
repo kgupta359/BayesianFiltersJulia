@@ -200,14 +200,16 @@ Updates `filter` with a sequence of measurements `zs`. Returns means and
 covariances after prediction and update steps respectively at each time step.
 `zs` must be an array of arrays.
 """
-function batch_filter(filter::KalmanFilter, zs;
-                    us=fill(filter.u, n),
-                    Fs=fill(filter.F, n),
-                    Qs=fill(filter.Q, n),
-                    Hs=fill(filter.H, n),
-                    Rs=fill(filter.R, n),
-                    Bs=fill(filter.B, n))
+function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
+
     n = size(zs)[1]
+
+    if us==nothing us=fill(filter.u, n) end
+    if Fs==nothing Fs=fill(filter.F, n) end
+    if Qs==nothing Qs=fill(filter.Q, n) end
+    if Hs==nothing Hs=fill(filter.H, n) end
+    if Rs==nothing Rs=fill(filter.R, n) end
+    if Bs==nothing Bs=fill(filter.B, n) end
 
     means = fill(zeros(size(filter.x)), n)
     means_p = fill(zeros(size(filter.x)), n)
