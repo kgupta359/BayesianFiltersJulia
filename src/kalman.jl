@@ -64,7 +64,7 @@ Base.@kwdef mutable struct KalmanFilter
     x::AbstractArray = zeros(x_dim,1)                   # state
     P::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # uncertainty covariance
     Q::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # process uncertainty
-    B::AbstractArray = Matrix{Real}(undef, x_dim, x_dim)# control transition matrix
+    B::AbstractArray = zeros(x_dim, u_dim)# control transition matrix
     u::AbstractArray = zeros(u_dim,1)                   # control vector
     F::AbstractArray = Matrix{Real}(I, x_dim, x_dim)    # state transition matrix
     H::AbstractArray = zeros(z_dim, x_dim)              # measurement function
@@ -97,19 +97,17 @@ Predict next state (prior) using the Kalman filter state propagation equations
 - `F = nothing`: state transition matrix
 - `modify::Bool = true`: whether to modify the filter or return x, P
 """
-function predict(filter::KalmanFilter; u=nothing, B=nothing, F=nothing, Q=nothing, modify::Bool=true)
-    if (u == nothing) u = filter.u end
-    if (B == nothing) B = filter.B end
-    if (F == nothing) F = filter.F end
-    if (Q == nothing)
-        Q = filter.Q
-    elseif length(Q) == 1
+function predict(filter::KalmanFilter; u=filter.u, B=filter.B, F=filter.F, Q=filter.Q, modify::Bool=true)
+    if length(Q) == 1
         Q = I*Q
     end
 
-    # propagate state x = Fx + Bu
-    x = F*filter.x + B*u
-
+    if filter.u_dim > 0
+        # propagate state x = Fx + Bu
+        x = F*filter.x + B*u
+    else
+        x = F*filter.x
+    end
     # propagate covariance P = FPF' + Q
     P = F*filter.P*F' + Q
 
@@ -120,10 +118,10 @@ function predict(filter::KalmanFilter; u=nothing, B=nothing, F=nothing, Q=nothin
         # update state prior
         filter.x_prior = copy(x)
         filter.P_prior = copy(P)
+        return
     else
         return x, P
     end
-    return
 end
 
 """
@@ -139,16 +137,16 @@ Update `filter` with new measurement `z`.
 - `R = nothing`: state uncertainty
 - `modify::Bool = true`: whether to modify the filter or return x, P
 """
-function update(filter::KalmanFilter, z::AbstractArray; R=nothing, H=nothing, modify=true)
-    if (R == nothing)
-        R = filter.R
-    elseif length(R) == 1
+function update(filter::KalmanFilter, z::AbstractArray; R=filter.R, H=filter.H, modify::Bool=true)
+    # if (R == nothing)
+    #     R = filter.R
+    if length(R) == 1
         R = I*R
     end
 
-    if (H == nothing)
-        H = filter.H
-    end
+    # if (H == nothing)
+    #     H = filter.H
+    # end
 
     # compute residual y = z - Hx
     y = z - H*filter.x
@@ -176,10 +174,10 @@ function update(filter::KalmanFilter, z::AbstractArray; R=nothing, H=nothing, mo
         filter.z = copy(z)
         filter.x_post = copy(x)
         filter.P_post = copy(P)
+        return
     else
         return x, P
     end
-    return
 end
 
 """
@@ -208,15 +206,21 @@ Updates `filter` with a sequence of measurements `zs`. Returns means and
 covariances after prediction and update steps respectively at each time step.
 `zs` must be an array of arrays.
 """
-function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothing, Hs=nothing, Rs=nothing, Bs=nothing)
+function batch_filter(filter::KalmanFilter, zs;
+                    us=fill(filter.u, n),
+                    Fs=fill(filter.F, n),
+                    Qs=fill(filter.Q, n),
+                    Hs=fill(filter.H, n),
+                    Rs=fill(filter.R, n),
+                    Bs=fill(filter.B, n))
     n = size(zs)[1]
 
-    if (Fs == nothing) Fs = fill(filter.F, n) end
-    if (Qs == nothing) Qs = fill(filter.Q, n) end
-    if (Hs == nothing) Hs = fill(filter.H, n) end
-    if (Rs == nothing) Rs = fill(filter.R, n) end
-    if (Bs == nothing) Bs = fill(filter.B, n) end
-    if (us == nothing) us = fill(filter.u, n) end
+    # if (Fs == nothing) Fs = fill(filter.F, n) end
+    # if (Qs == nothing) Qs = fill(filter.Q, n) end
+    # if (Hs == nothing) Hs = fill(filter.H, n) end
+    # if (Rs == nothing) Rs = fill(filter.R, n) end
+    # if (Bs == nothing) Bs = fill(filter.B, n) end
+    # if (us == nothing) us = fill(filter.u, n) end
 
     means = fill(zeros(size(filter.x)), n)
     means_p = fill(zeros(size(filter.x)), n)
@@ -243,13 +247,14 @@ Runs the Rauch-Tung-Striebel Kalman smoother on a set of means and covariances
 computed by a Kalman filter. Returns smoothed means `x`, smoothed state covariances
 `P`, smoother gain `K` at each step and predicted state covariances `Pp`.
 """
-function rts_smoother(filter::KalmanFilter, Xs::AbstractArray, Ps::AbstractArray; Fs=nothing, Qs=nothing)
+function rts_smoother(filter::KalmanFilter, Xs::AbstractArray, Ps::AbstractArray;
+    Fs=fill(filter.F, n), Qs=fill(filter.Q, n))
     size(Xs)[1] == size(Ps)[1] || throw(DimensionMismatch("length of Xs and Ps must be the same"))
 
     n = size(Xs)[1]
 
-    if (Fs == nothing) Fs = fill(filter.F, n) end
-    if (Qs == nothing) Qs = fill(filter.Q, n) end
+    # if (Fs == nothing) Fs = fill(filter.F, n) end
+    # if (Qs == nothing) Qs = fill(filter.Q, n) end
 
     # smoother gain
     K = fill(zeros(filter.x_dim, filter.x_dim),n)
