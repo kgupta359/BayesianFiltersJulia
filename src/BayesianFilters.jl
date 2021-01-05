@@ -14,4 +14,11 @@ using .kalman
 
 include("common.jl")
 using .common
+
+include("_sigma_points.jl")
+using ._sigma_points
+
+include("UKF.jl")
+using .UKF
+
 end
