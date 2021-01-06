@@ -211,16 +211,10 @@ function batch_filter(filter::KalmanFilter, zs; us=nothing, Fs=nothing, Qs=nothi
     if Bs==nothing Bs=fill(filter.B, n) end
 
     means = zeros(n, filter.x_dim)
-    means_p = zeros(n, filter.x_dim)
-
     covariances = fill(zeros(filter.x_dim, filter.x_dim), n)
-    covariances_p = fill(zeros(filter.x_dim, filter.x_dim), n)
 
     for (i, z) in enumerate(eachrow(zs))
         predict(filter, u=us[i], B=Bs[i], F=Fs[i], Q=Qs[i])
-        means_p[i,:] = filter.x
-        covariances_p[i] = filter.P
-
         update(filter, z, R=Rs[i], H=Hs[i])
         means[i,:] = filter.x
         covariances[i] = filter.P
