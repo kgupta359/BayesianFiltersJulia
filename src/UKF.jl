@@ -105,6 +105,8 @@ function predict(filter::UnscentedKF;
     compute_process_sigmas(filter, dt, fx=fx)
     filter.x, filter.P = UT(filter.sigmas_f, filter.Wm, filter.Wc, noise_cov=filter.Q, mean_fn=filter.x_mean_fn, residual_fn=filter.residual_x)
 
+    # same output as filterpy if the following line is commented
+    # likely a bug in filterpy
     filter.sigmas_f = sigma_points(filter.points_fn, filter.x, filter.P)
 
     filter.x_prior = copy(filter.x)
@@ -159,7 +161,6 @@ function batch_filter(filter::UnscentedKF, zs; Rs=fill(filter.R, size(zs)[1]),
     return (means, covariances)
 end
 
-""" ### Does not work yet
 function rts_smoother(filter::UnscentedKF, Xs, Ps; Qs=fill(filter.Q, size(Xs)[1]),
     dts=fill(filter.dt, size(Xs)[1]), UT=unscented_transform)
 
@@ -180,85 +181,19 @@ function rts_smoother(filter::UnscentedKF, Xs, Ps; Qs=fill(filter.Q, size(Xs)[1]
 
         xb, Pb = UT(sigmas_f, filter.Wm, filter.Wc, noise_cov=filter.Q, mean_fn=filter.x_mean_fn, residual_fn=filter.residual_x)
 
-        Pxb = 0
+        Pxb = zeros(size(sigmas_f)[2], size(sigmas_f)[2])
         for i in 1:num_sigmas
             y = filter.residual_x(sigmas_f[i,:], xb)
-            z = filter.residual_z(sigmas[i,:], Xs[k,:])
-            Pxb += filter.Wc[i]*(z')*(y)
+            z = filter.residual_x(sigmas[i,:], Xs[k,:])
+            Pxb += filter.Wc[i]*(z)*(y')
         end
         K = Pxb*inv(Pb)
 
         xs[k,:] += K*filter.residual_x(xs[k+1,:], xb)
-        ps[k] += K*(ps[k+1] - Pb)*K'
+        ps[k] += (K*(ps[k+1] .- Pb))*K'
         Ks[k] = K
     end
     return (xs, ps, Ks)
 end
-"""
 
-"""
-############ example to check code ###########
-function fx(x,dt)
-    xout = zeros(size(x))
-    xout[1] = x[2]*dt + x[1]
-    xout[2] = x[2]
-    return xout
-end
-function hx(x)
-    return x[1:1]'
-end
-
-points_fn = JulierSigmaPoints(n=2, kappa=1)
-
-ukf = UnscentedKF(x_dim=2, z_dim=1, dt=1.0, hx=hx, fx=fx, points_fn=points_fn)
-ukf.x = [0. 0.]'
-ukf.P *= 10.
-ukf.R *= 0.5
-ukf.Q = discrete_white_noise(2, dt=1., var=0.03)
-
-num = 50
-xs = zeros(num,2)
-zs = zeros(num,1)
-using Random
-rng = MersenneTwister(42)
-
-zs = reshape([i+randn()*0.5 for i in 0:(num-1)], num, 1)
-
-Xs, Ps = batch_filter(ukf, zs)
-# smoothX, smoothP, smoothK = rts_smoother(ukf, Xs, Ps)
-
-using Plots
-plotlyjs()
-
-scatter(zs, label="measured")
-plot!(Xs[:,1], label="filter")
-# plot!(smoothX[:,1], label="smoothed")
-
-######### example to check code ##########
-points_fn = MerweScaledSigmaPoints(n=2, alpha=0.3, beta=2., kappa=0.1)
-x = [0., 0.]
-p = [32. 15.; 15. 40.]
-sigmas = sigma_points(points_fn, x, p)
-
-f_nonlinear_xy(x,y) = [x+y, 0.1*x^2 + y*y]
-
-sigmas_f = zeros(5,2)
-for i in 1:5
-    sigmas_f[i,:] = f_nonlinear_xy(sigmas[i,1], sigmas[i,2])
-end
-
-ukf_mean, ukf_cov = unscented_transform(sigmas_f, points_fn.Wm, points_fn.Wc)
-
-using BayesianFilters.stats
-using Random
-
-xy = rand(MvNormal(x, p), 5000)
-fxy = f_nonlinear_xy.(xy[1,:], xy[2,:])
-fxy = hcat(fxy...)
-scatter(fxy[1,:],fxy[2,:], label="transformed distribution", markersize=0.5)
-scatter!([mean(fxy[1,:])], [mean(fxy[2,:])], label="computed mean", markersize=5)
-scatter!([ukf_mean[1]], [ukf_mean[2]], label="unscented mean", markersize=2)
-ukf_mean[1] - mean(fxy[1,:])
-ukf_mean[2] - mean(fxy[2,:])
-"""
 end
