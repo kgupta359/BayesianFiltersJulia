@@ -5,7 +5,8 @@ using .common
 include("_sigma_points.jl")
 using ._sigma_points
 
-export unscented_transform, UnscentedKF, predict, update, compute_process_sigmas, cross_variance
+export UnscentedKF, predict, update, batch_filter, rts_smoother
+export unscented_transform, compute_process_sigmas, cross_variance
 export MerweScaledSigmaPoints, JulierSigmaPoints, sigma_points
 
 using LinearAlgebra
