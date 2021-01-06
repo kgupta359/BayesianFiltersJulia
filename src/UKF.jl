@@ -139,6 +139,63 @@ function update(filter::UnscentedKF, z; R=filter.R, UT=unscented_transform, hx=f
     filter.P_post = copy(filter.P)
 end
 
+function batch_filter(filter::UnscentedKF, zs; Rs=fill(filter.R, size(zs)[1]),
+    dts=fill(filter.dt, size(zs)[1]), UT=unscented_transform)
+
+    size(zs)[2] == filter.z_dim || throw(DimensionMismatch("size(zs)[2] must be equal to filter.z_dim"))
+    size(zs)[1] == size(Rs)[1] || throw(DimensionMismatch("Rs must be an array of arrays with size(Rs)[1] == size(zs)[1]"))
+
+    n = size(zs)[1]
+
+    means = zeros(n, filter.x_dim)
+    covariances = fill(zeros(filter.x_dim, filter.x_dim),n)
+
+    for (i,z) in enumerate(eachrow(zs))
+        predict(filter, dt=dts[i], UT=UT)
+        update(filter, z, R=Rs[i], UT=UT)
+        means[i,:] = filter.x
+        covariances[i] = filter.P
+    end
+    return (means, covariances)
+end
+
+""" ### Does not work yet
+function rts_smoother(filter::UnscentedKF, Xs, Ps; Qs=fill(filter.Q, size(Xs)[1]),
+    dts=fill(filter.dt, size(Xs)[1]), UT=unscented_transform)
+
+    size(Xs)[1] == size(Ps)[1] || throw(DimensionMismatch("length of Xs and Ps must be the same"))
+    n, x_dim = size(Xs)
+
+    Ks = fill(zeros(x_dim, x_dim),n)
+    num_sigmas = filter.num_sigmas
+    xs, ps = copy(Xs), copy(Ps)
+    sigmas_f = zeros(num_sigmas, x_dim)
+
+    for k in (n-1):-1:1
+        sigmas = sigma_points(filter.points_fn, xs[k,:], ps[k])
+
+        for i in 1:num_sigmas
+            sigmas_f[i,:] = filter.fx(sigmas[i,:], dts[k])
+        end
+
+        xb, Pb = UT(sigmas_f, filter.Wm, filter.Wc, noise_cov=filter.Q, mean_fn=filter.x_mean_fn, residual_fn=filter.residual_x)
+
+        Pxb = 0
+        for i in 1:num_sigmas
+            y = filter.residual_x(sigmas_f[i,:], xb)
+            z = filter.residual_z(sigmas[i,:], Xs[k,:])
+            Pxb += filter.Wc[i]*(z')*(y)
+        end
+        K = Pxb*inv(Pb)
+
+        xs[k,:] += K*filter.residual_x(xs[k+1,:], xb)
+        ps[k] += K*(ps[k+1] - Pb)*K'
+        Ks[k] = K
+    end
+    return (xs, ps, Ks)
+end
+"""
+
 """
 ############ example to check code ###########
 function fx(x,dt)
@@ -162,19 +219,20 @@ ukf.Q = discrete_white_noise(2, dt=1., var=0.03)
 num = 50
 xs = zeros(num,2)
 zs = zeros(num,1)
+using Random
 rng = MersenneTwister(42)
 
-for i in 0:49
-    z = Matrix{Real}(I,1,1)*(i + randn(rng)*0.5)
-    predict(ukf)
-    update(ukf,z)
-    xs[i+1,:] = ukf.x
-    zs[i+1,:] = ukf.z
-end
+zs = reshape([i+randn()*0.5 for i in 0:(num-1)], num, 1)
 
+Xs, Ps = batch_filter(ukf, zs)
+# smoothX, smoothP, smoothK = rts_smoother(ukf, Xs, Ps)
+
+using Plots
+plotlyjs()
 
 scatter(zs, label="measured")
-plot!(xs[:,1], label="filter")
+plot!(Xs[:,1], label="filter")
+# plot!(smoothX[:,1], label="smoothed")
 
 ######### example to check code ##########
 points_fn = MerweScaledSigmaPoints(n=2, alpha=0.3, beta=2., kappa=0.1)
