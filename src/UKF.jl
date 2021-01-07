@@ -79,11 +79,11 @@ Base.@kwdef mutable struct UnscentedKF
     P_post::AbstractArray = copy(P)
 end
 
-function compute_process_sigmas(filter::UnscentedKF, dt; fx=filter.fx)
+function compute_process_sigmas(filter::UnscentedKF, dt; fx=filter.fx, fx_args...)
     sigmas = sigma_points(filter.points_fn, filter.x, filter.P)
 
     for (i,s) in enumerate(eachrow(sigmas))
-        filter.sigmas_f[i,:] = fx(s, dt)
+        filter.sigmas_f[i,:] = fx(s, dt; fx_args...)
     end
 end
 
@@ -101,9 +101,9 @@ end
 function predict(filter::UnscentedKF;
     UT::Function=unscented_transform,
     dt::Real=filter.dt,
-    fx::Function=filter.fx, hx::Function=filter.hx)
+    fx::Function=filter.fx, fx_args...)
 
-    compute_process_sigmas(filter, dt, fx=fx)
+    compute_process_sigmas(filter, dt, fx=fx; fx_args...)
     filter.x, filter.P = UT(filter.sigmas_f, filter.Wm, filter.Wc, noise_cov=filter.Q, mean_fn=filter.x_mean_fn, residual_fn=filter.residual_x)
 
     # same output as filterpy if the following line is commented
@@ -114,14 +114,17 @@ function predict(filter::UnscentedKF;
     filter.P_prior = copy(filter.P)
 end
 
-function update(filter::UnscentedKF, z; R=filter.R, UT=unscented_transform, hx=filter.hx)
+function update(filter::UnscentedKF, z;
+    R=filter.R,
+    UT::Function=unscented_transform,
+    hx::Function=filter.hx, hx_args...)
     if length(R) == 1
         R = I*R
     end
 
     sigmas_h = zeros(size(filter.sigmas_f)[1], filter.z_dim)
     for (i,s) in enumerate(eachrow(filter.sigmas_f))
-        sigmas_h[i,:] = hx(s)
+        sigmas_h[i,:] = hx(s; hx_args...)
     end
 
     filter.sigmas_h = copy(sigmas_h)
